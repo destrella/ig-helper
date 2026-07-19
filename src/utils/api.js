@@ -91,7 +91,7 @@ export function getUserId(username) {
                 // Fix search issue by Discord: sno_w_
                 let obj = JSON.parse(response.response);
                 let result = null;
-                obj.users.forEach(pos => {
+                (obj.users ?? []).forEach(pos => {
                     if (pos.user.username?.toLowerCase() === username?.toLowerCase()) {
                         result = pos;
                     }

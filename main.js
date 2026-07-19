@@ -17,7 +17,7 @@
 // @name:zh-CN         IG小助手
 // @name:zh-TW         IG小精靈
 // @namespace          https://github.snkms.com/
-// @version            4.0.3
+// @version            4.1.1.1
 // @description        Download photos and videos from Instagram posts in one click, including Stories, Reels, and profile pictures.
 // @description:ar     نزّل صورًا ومقاطع فيديو من منشورات Instagram بنقرة واحدة، بما في ذلك القصص وReels وصور الملف الشخصي.
 // @description:de     Lade Fotos und Videos aus Instagram-Beiträgen mit einem Klick herunter, einschließlich Stories, Reels und Profilbildern.
@@ -38,6 +38,7 @@
 // @author             SN-Koarashi (5026)
 // @match              https://*.instagram.com/*
 // @grant              GM_addStyle
+// @grant              GM_download
 // @grant              GM_getResourceText
 // @grant              GM_getValue
 // @grant              GM_info
@@ -1307,7 +1308,7 @@
                                     $targetNode.get(0).tagName === "IMG" &&
                                     $targetNode.attr('alt')?.length == 0
                                 ) {
-                                        return;
+                                    return;
                                 }
 
                                 $triggeredTarget = $targetNode;
@@ -1624,7 +1625,7 @@
                                     blob = true;
                                 }
                                 if (element_images && imgLink) {
-                                    $popupBody.append(`<a datetime="${publish_time}" data-needed="direct" data-path="${state.GL_postPath}" data-name="photo" data-type="jpg" data-globalIndex="${s}" href="javascript:;" data-href="${imgLink}"><img width="100" src="${imgLink}" /><br/>- <span data-ih-locale="IMG">${_i18n("IMG")}</span> ${s} -</a>`);
+                                    $popupBody.append(`<a datetime="${publish_time}" data-needed="direct" data-path="${state.GL_postPath}" data-name="photo" data-type="jpg" data-username="${state.GL_username || ''}" data-globalIndex="${s}" href="javascript:;" data-href="${imgLink}"><img width="100" src="${imgLink}" /><br/>- <span data-ih-locale="IMG">${_i18n("IMG")}</span> ${s} -</a>`);
                                 }
                             });
                         }
@@ -3423,7 +3424,7 @@
                     // Fix search issue by Discord: sno_w_
                     let obj = JSON.parse(response.response);
                     let result = null;
-                    obj.users.forEach(pos => {
+                    (obj.users ?? []).forEach(pos => {
                         if (pos.user.username?.toLowerCase() === username?.toLowerCase()) {
                             result = pos;
                         }
@@ -4216,21 +4217,58 @@
      * @return {Promise}
      */
     function saveFiles(downloadLink, metadata) {
-        return new Promise((resolve) => {
+        return new Promise(resolve => {
             setTimeout(() => {
                 updateLoadingBar(true);
-                fetch(downloadLink)
-                    .then(res => res.blob())
-                    .then(dwel => {
-                        updateLoadingBar(false);
-                        return createSaveFileElement(downloadLink, dwel, metadata);
-                    })
-                    .then(() => resolve(true))
-                    .catch(err => {
-                        updateLoadingBar(false);
-                        console.error('saveFiles failed:', err);
-                        resolve(false);
+
+                const downloadName = getSaveFileName(downloadLink, metadata);
+                const { filetype, shortcode, sourceType } = metadata;
+
+                if (
+                    USER_SETTING.MODIFY_RESOURCE_EXIF &&
+                    filetype === 'jpg' &&
+                    shortcode &&
+                    sourceType === 'photo'
+                ) {
+                    fetch(downloadLink)
+                        .then(res => res.blob())
+                        .then(dwel => {
+                            updateLoadingBar(false);
+                            return createSaveFileElement(downloadLink, dwel, metadata);
+                        })
+                        .then(() => resolve(true))
+                        .catch(err => {
+                            updateLoadingBar(false);
+                            console.error('saveFiles failed', err);
+                            resolve(false);
+                        });
+                } else {
+                    GM_download({
+                        url: downloadLink,
+                        name: downloadName,
+                        onload: () => {
+                            updateLoadingBar(false);
+                            resolve(true);
+                        },
+                        // eslint-disable-next-line no-unused-vars
+                        onerror: (err) => {
+                            updateLoadingBar(false);
+                            resolve(true);
+
+                            // ! If the user cancels the download (when a "Save As" window is displayed), this area will be triggered incorrectly.
+                            // logger('saveFiles GM_download error', err);
+                            // updateLoadingBar(false);
+                            // fetch(downloadLink)
+                            //     .then(res => res.blob())
+                            //     .then(dwel => createSaveFileElement(downloadLink, dwel, metadata))
+                            //     .then(() => resolve(true))
+                            //     .catch(e => {
+                            //         console.error('saveFiles fallback failed', e);
+                            //         resolve(false);
+                            //     });
+                        },
                     });
+                }
             }, 50);
         });
     }
@@ -4546,21 +4584,37 @@
      * @param {string} filename
      */
     function triggerDownload(blob, filename) {
-        return new Promise((resolve) => {
+        return new Promise(resolve => {
             const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = filename;
-            link.rel = "noopener";
-            link.style.display = "none";
-            document.body.appendChild(link);
-            link.click();
-            setTimeout(() => {
-                // eslint-disable-next-line no-unused-vars
-                try { document.body.removeChild(link); } catch (e) { /* noop */ }
-                URL.revokeObjectURL(url);
-                resolve();
-            }, 250);
+
+            GM_download({
+                url: url,
+                name: filename,
+                onload: () => {
+                    URL.revokeObjectURL(url);
+                    resolve();
+                },
+                onerror: () => {
+                    URL.revokeObjectURL(url);
+                    resolve();
+
+                    // ! If the user cancels the download (when a "Save As" window is displayed), this area will be triggered incorrectly.
+                    // const blobUrl = URL.createObjectURL(blob);
+                    // const link = document.createElement('a');
+                    // link.href = blobUrl;
+                    // link.download = filename;
+                    // link.rel = 'noopener';
+                    // link.style.display = 'none';
+                    // document.body.appendChild(link);
+                    // link.click();
+                    // setTimeout(() => {
+                    //     // eslint-disable-next-line no-unused-vars
+                    //     try { document.body.removeChild(link); } catch (e) { /* noop */ }
+                    //     URL.revokeObjectURL(blobUrl);
+                    //     resolve();
+                    // }, 250);
+                },
+            });
         });
     }
 
@@ -4650,14 +4704,14 @@
     async function createSaveFileElement(downloadLink, object, metadata) {
         let { username, sourceType, filetype, shortcode } = metadata;
 
-        if (metadata.uid == null && username) {
+        if (metadata.uid == null) {
+            username = metadata.username;
             if (!userIdCache.has(username)) {
                 userIdCache.set(username, getUserId(username));
             }
-
             try {
                 const userInfo = await userIdCache.get(username);
-                metadata.uid = userInfo?.user?.id || null;
+                metadata.uid = userInfo?.user?.id ?? null;
                 // eslint-disable-next-line no-unused-vars
             } catch (err) {
                 userIdCache.delete(username);
@@ -4681,7 +4735,9 @@
                 console.error('Failed to strip EXIF and/or attach post URL to EXIF.', err);
                 await triggerDownload(object, downloadName);
             }
-        } else {
+            return;
+        }
+        else {
             await triggerDownload(object, downloadName);
         }
     }
@@ -6706,27 +6762,27 @@
                                     $(this).on('timeupdate', function () {
                                         const $this = $(this);
                                         if (!$this.data('modify-thumbnail')) {
-                                                let $video = $this;
-                                                if ($video.parents('div[style][class]').filter(function () {
-                                                    return $(this).width() == $video.width();
-                                                }).find('.IG_DWSTORY_THUMBNAIL, .IG_DWHISTORY_THUMBNAIL').length === 0) {
-                                                    $this.data('modify-thumbnail', true);
+                                            let $video = $this;
+                                            if ($video.parents('div[style][class]').filter(function () {
+                                                return $(this).width() == $video.width();
+                                            }).find('.IG_DWSTORY_THUMBNAIL, .IG_DWHISTORY_THUMBNAIL').length === 0) {
+                                                $this.data('modify-thumbnail', true);
 
-                                                    if (isHighlight) {
-                                                        onHighlightsStoryThumbnail(false);
-                                                    }
-                                                    else {
-                                                        onStoryThumbnail(false);
-                                                    }
-
-                                                    logger(`(${storyType})`, 'Manually inserting thumbnail button');
+                                                if (isHighlight) {
+                                                    onHighlightsStoryThumbnail(false);
                                                 }
                                                 else {
-                                                    $this.data('modify-thumbnail', true);
-                                                    logger(`(${storyType})`, 'Thumbnail button already inserted');
+                                                    onStoryThumbnail(false);
                                                 }
+
+                                                logger(`(${storyType})`, 'Manually inserting thumbnail button');
                                             }
-                                        });
+                                            else {
+                                                $this.data('modify-thumbnail', true);
+                                                logger(`(${storyType})`, 'Thumbnail button already inserted');
+                                            }
+                                        }
+                                    });
 
                                     var $video = $(this);
 
