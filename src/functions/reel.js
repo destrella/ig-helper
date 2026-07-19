@@ -1,5 +1,5 @@
 import { USER_SETTING, SVG, state } from "../settings";
-import { updateLoadingBar, saveFiles, openNewTab, logger, toggleVolumeSilder, triggerReactClickHandler } from "../utils/general";
+import { updateLoadingBar, saveFiles, openNewTab, logger, toggleVolumeSilder, triggerReactClickHandler, getBestImageUrlFromMedia } from "../utils/general";
 import { getBlobMedia } from "../utils/api";
 import { filterResourceData } from "./post";
 import { _i18n } from "../utils/i18n";
@@ -52,11 +52,11 @@ export async function onReels(isDownload, isVideo, isPreview) {
                 }
                 else {
                     if (isPreview) {
-                        openNewTab(media.display_resources.at(-1).src);
+                        openNewTab(getBestImageUrlFromMedia(media, media.display_resources?.at(-1)?.src));
                     }
                     else {
                         let type = 'jpg';
-                        saveFiles(media.display_resources.at(-1).src, {
+                        saveFiles(getBestImageUrlFromMedia(media, media.display_resources?.at(-1)?.src), {
                             username: media.owner.username,
                             sourceType: "reels",
                             timestamp,
@@ -83,12 +83,13 @@ export async function onReels(isDownload, isVideo, isPreview) {
                     }
                 }
                 else {
+                    const imageUrl = getBestImageUrlFromMedia(media, media.image_versions2?.candidates?.[0]?.url);
                     if (isPreview) {
-                        openNewTab(media.image_versions2.candidates[0].url);
+                        openNewTab(imageUrl);
                     }
                     else {
                         let type = 'jpg';
-                        saveFiles(media.image_versions2.candidates[0].url, {
+                        saveFiles(imageUrl, {
                             username: media.owner.username,
                             sourceType: "reels",
                             timestamp,

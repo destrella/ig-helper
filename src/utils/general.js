@@ -13,6 +13,109 @@ export function getPlatformModifierKey() {
 }
 
 /**
+ * getLargestImageUrlFromSrcset
+ * @description Select the largest candidate URL from an image srcset string.
+ *
+ * @param {?string} srcset
+ * @param {?string} fallback
+ * @return {?string}
+ */
+export function getLargestImageUrlFromSrcset(srcset, fallback = null) {
+    if (typeof srcset !== 'string' || srcset.trim().length === 0) {
+        return fallback;
+    }
+
+    let bestUrl = fallback;
+    let bestScore = -Infinity;
+
+    for (const rawCandidate of srcset.split(',')) {
+        const candidate = rawCandidate.trim();
+        if (!candidate) continue;
+
+        const parts = candidate.split(/\s+/);
+        const url = parts.shift();
+        const descriptor = parts.pop();
+        let score = 0;
+
+        if (descriptor) {
+            const match = descriptor.match(/^(\d+(?:\.\d+)?)(w|x)$/i);
+            if (match) {
+                const value = parseFloat(match[1]);
+                const unit = match[2].toLowerCase();
+                score = unit === 'w' ? value : value * 1000;
+            }
+        }
+
+        if (score >= bestScore && url) {
+            bestScore = score;
+            bestUrl = url;
+        }
+    }
+
+    return bestUrl;
+}
+
+/**
+ * getBestImageUrlFromMedia
+ * @description Select the best available image URL from an Instagram media object.
+ *
+ * @param {?Object|string} media
+ * @param {?string} fallback
+ * @return {?string}
+ */
+export function getBestImageUrlFromMedia(media, fallback = null) {
+    if (typeof media === 'string') {
+        return media;
+    }
+
+    if (!media || typeof media !== 'object') {
+        return fallback;
+    }
+
+    const candidates = [];
+    const pushCandidate = (url, score) => {
+        if (typeof url !== 'string' || url.trim().length === 0) {
+            return;
+        }
+
+        candidates.push({
+            url,
+            score: Number.isFinite(score) ? score : 0
+        });
+    };
+
+    const pushBestFromArray = (items, urlKey) => {
+        if (!Array.isArray(items)) {
+            return;
+        }
+
+        items.forEach((item, idx) => {
+            const url = item?.[urlKey];
+            const score = Number(item?.width || item?.config_width || item?.height || 0);
+            pushCandidate(url, score || idx);
+        });
+    };
+
+    pushBestFromArray(media.image_versions2?.candidates, 'url');
+    pushBestFromArray(media.display_resources, 'src');
+
+    if (typeof media.display_url === 'string') {
+        pushCandidate(media.display_url, 0);
+    }
+
+    if (typeof media.thumbnail_src === 'string') {
+        pushCandidate(media.thumbnail_src, 0);
+    }
+
+    if (candidates.length === 0) {
+        return fallback;
+    }
+
+    candidates.sort((a, b) => b.score - a.score);
+    return candidates[0]?.url || fallback;
+}
+
+/**
  * getStoryId
  * @description Obtain the media id through the resource URL.
  *
@@ -1198,22 +1301,7 @@ export async function triggerLinkElement($element, isPreview = false) {
                 if (mediaItem?.video_versions?.length) {
                     resource_url = mediaItem.video_versions[0].url;
                 } else if (mediaItem?.image_versions2?.candidates?.length) {
-                    mediaItem.image_versions2.candidates.sort(function (a, b) {
-                        let aSTP = new URL(a.url).searchParams.get('stp');
-                        let bSTP = new URL(b.url).searchParams.get('stp');
-
-                        if (aSTP && bSTP) {
-                            if (aSTP.length > bSTP.length) return 1;
-                            if (aSTP.length < bSTP.length) return -1;
-                        } else {
-                            if ((a.width || 0) > (b.width || 0)) return 1;
-                            if ((a.width || 0) < (b.width || 0)) return -1;
-                        }
-
-                        return 0;
-                    });
-
-                    resource_url = mediaItem.image_versions2.candidates[0].url;
+                    resource_url = getBestImageUrlFromMedia(mediaItem);
                 }
 
                 if (!resource_url) {

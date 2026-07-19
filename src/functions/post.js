@@ -5,7 +5,9 @@ import {
     updatePopupSelectionSummary,
     replaceSameOriginHost,
     setDownloadProgress,
-    triggerReactClickHandler
+    triggerReactClickHandler,
+    getLargestImageUrlFromSrcset,
+    getBestImageUrlFromMedia
 } from "../utils/general";
 import { getBlobMedia } from "../utils/api";
 import { _i18n } from "../utils/i18n";
@@ -706,21 +708,20 @@ export function registerPostClickHandlers() {
                         }
                     });
 
-                    if (blob || USER_SETTING.FORCE_RESOURCE_VIA_MEDIA) {
-                        await createMediaListDOM(
-                            state.GL_postPath,
-                            ".IG_POPUP_DIG .IG_POPUP_DIG_MAIN .IG_POPUP_DIG_BODY",
-                            _i18n("LOAD_BLOB_MULTIPLE")
-                        );
-                    }
-                    else {
+                    const totalInserted = await createMediaListDOM(
+                        state.GL_postPath,
+                        ".IG_POPUP_DIG .IG_POPUP_DIG_MAIN .IG_POPUP_DIG_BODY",
+                        _i18n("LOAD_BLOB_MULTIPLE")
+                    );
+
+                    if (!totalInserted || totalInserted < 1) {
                         const $popupBody = $('.IG_POPUP_DIG .IG_POPUP_DIG_MAIN .IG_POPUP_DIG_BODY');
                         $resourceItems.each(function () {
                             s++;
                             const $this = $(this);
                             let element_videos = $this.find('video');
                             let element_images = $this.find('._aagv img');
-                            let imgLink = (element_images.attr('srcset')) ? element_images.attr('srcset').split(" ")[0] : element_images.attr('src');
+                            let imgLink = getLargestImageUrlFromSrcset(element_images.attr('srcset'), element_images.attr('src'));
 
                             if (element_videos && element_videos.attr('src')) {
                                 blob = true;
@@ -729,14 +730,6 @@ export function registerPostClickHandlers() {
                                 $popupBody.append(`<a datetime="${publish_time}" data-needed="direct" data-path="${state.GL_postPath}" data-name="photo" data-type="jpg" data-username="${state.GL_username || ''}" data-globalIndex="${s}" href="javascript:;" data-href="${imgLink}"><img width="100" src="${imgLink}" /><br/>- <span data-ih-locale="IMG">${_i18n("IMG")}</span> ${s} -</a>`);
                             }
                         });
-
-                        if (blob) {
-                            await createMediaListDOM(
-                                state.GL_postPath,
-                                ".IG_POPUP_DIG .IG_POPUP_DIG_MAIN .IG_POPUP_DIG_BODY",
-                                _i18n("LOAD_BLOB_RELOAD")
-                            );
-                        }
                     }
                 }
                 else {
@@ -751,7 +744,6 @@ export function registerPostClickHandlers() {
                         s++;
                         let element_videos = $article.find('video');
                         let element_images = $article.find('._aagv img');
-                        let imgLink = (element_images.attr('srcset')) ? element_images.attr('srcset').split(" ")[0] : element_images.attr('src');
 
                         if (element_videos && element_videos.attr('src')) {
                             await createMediaListDOM(
@@ -760,8 +752,19 @@ export function registerPostClickHandlers() {
                                 _i18n("LOAD_BLOB_ONE")
                             );
                         }
-                        if (element_images && imgLink) {
-                            $('.IG_POPUP_DIG .IG_POPUP_DIG_MAIN .IG_POPUP_DIG_BODY').append(`<a datetime="${publish_time}" data-needed="direct" data-path="${state.GL_postPath}" data-name="photo" data-type="jpg" data-username="${state.GL_username || ''}" data-globalIndex="${s}" href="javascript:;" data-href="${imgLink}"><img width="100" src="${imgLink}" /><br/>- <span data-ih-locale="IMG">${_i18n("IMG")}</span> ${s} -</a>`);
+                        else if (element_images && element_images.length > 0) {
+                            const totalInserted = await createMediaListDOM(
+                                state.GL_postPath,
+                                ".IG_POPUP_DIG .IG_POPUP_DIG_MAIN .IG_POPUP_DIG_BODY",
+                                _i18n("LOAD_BLOB_ONE")
+                            );
+
+                            if (!totalInserted || totalInserted < 1) {
+                                let imgLink = getLargestImageUrlFromSrcset(element_images.attr('srcset'), element_images.attr('src'));
+                                if (imgLink) {
+                                    $('.IG_POPUP_DIG .IG_POPUP_DIG_MAIN .IG_POPUP_DIG_BODY').append(`<a datetime="${publish_time}" data-needed="direct" data-path="${state.GL_postPath}" data-name="photo" data-type="jpg" data-globalIndex="${s}" href="javascript:;" href="" data-href="${imgLink}"><img width="100" src="${imgLink}" /><br/>- <span data-ih-locale="IMG">${_i18n("IMG")}</span> ${s} -</a>`);
+                                }
+                            }
                         }
                     }
                 }
@@ -781,6 +784,12 @@ export function registerPostClickHandlers() {
                     $a.after(`<div data-ih-locale-title="VIDEO_THUMBNAIL" title="${_i18n("VIDEO_THUMBNAIL")}" class="videoThumbnail">${SVG.THUMBNAIL}</div>`);
                 }
             });
+
+            const $downloadItems = $('.IG_POPUP_DIG .IG_POPUP_DIG_MAIN .IG_POPUP_DIG_BODY a[data-needed="direct"]');
+            if ($downloadItems.length > 0) {
+                $('.IG_POPUP_DIG #batch_download_selected, .IG_POPUP_DIG #batch_download_direct').prop('disabled', false);
+                updatePopupSelectionSummary();
+            }
 
             if (USER_SETTING.DIRECT_DOWNLOAD_ALL) {
                 const totalInserted = await createMediaListDOM(
@@ -857,7 +866,7 @@ export async function createMediaListDOM(postURL, selector, message) {
 
             // GraphVideo
             if (resource.__typename == "GraphVideo" && resource.video_url) {
-                $target.append(`<a media-id="${resource.id}" datetime="${resource.taken_at_timestamp}" data-blob="true" data-needed="direct" data-path="${resource.shortcode}" data-name="video" data-type="mp4" data-username="${resource.owner.username}" data-globalIndex="${idx}" href="javascript:;" data-href="${resource.video_url}"><img width="100" src="${resource.display_resources[1].src}" /><br/>- <span data-ih-locale="VID">${_i18n("VID")}</span> ${idx} -</a>`);
+                $target.append(`<a media-id="${resource.id}" datetime="${resource.taken_at_timestamp}" data-blob="true" data-needed="direct" data-path="${resource.shortcode}" data-name="video" data-type="mp4" data-username="${resource.owner.username}" data-globalIndex="${idx}" href="javascript:;" data-href="${resource.video_url}"><img width="100" src="${getBestImageUrlFromMedia(resource, resource.display_resources?.[1]?.src)}" /><br/>- <span data-ih-locale="VID">${_i18n("VID")}</span> ${idx} -</a>`);
                 idx++;
 
                 if (resource.video_dash_manifest) {
@@ -866,21 +875,21 @@ export async function createMediaListDOM(postURL, selector, message) {
             }
             // GraphImage
             if (resource.__typename == "GraphImage") {
-                $target.append(`<a media-id="${resource.id}" datetime="${resource.taken_at_timestamp}" data-blob="true" data-needed="direct" data-path="${resource.shortcode}" data-name="photo" data-type="jpg" data-username="${resource.owner.username}" data-globalIndex="${idx}" href="javascript:;" data-href="${resource.display_resources[resource.display_resources.length - 1].src}"><img width="100" src="${resource.display_resources[1].src}" /><br/>- <span data-ih-locale="IMG">${_i18n("IMG")}</span> ${idx} -</a>`);
+                $target.append(`<a media-id="${resource.id}" datetime="${resource.taken_at_timestamp}" data-blob="true" data-needed="direct" data-path="${resource.shortcode}" data-name="photo" data-type="jpg" data-username="${resource.owner.username}" data-globalIndex="${idx}" href="javascript:;" data-href="${getBestImageUrlFromMedia(resource, resource.display_resources?.[resource.display_resources.length - 1]?.src)}"><img width="100" src="${getBestImageUrlFromMedia(resource, resource.display_resources?.[1]?.src)}" /><br/>- <span data-ih-locale="IMG">${_i18n("IMG")}</span> ${idx} -</a>`);
                 idx++;
             }
             // GraphSidecar
             if (resource.__typename == "GraphSidecar" && resource.edge_sidecar_to_children) {
                 for (let e of resource.edge_sidecar_to_children.edges) {
                     if (e.node.__typename == "GraphVideo") {
-                        $target.append(`<a media-id="${e.node.id}" datetime="${resource.taken_at_timestamp}" data-blob="true" data-needed="direct" data-path="${resource.shortcode}" data-name="video" data-type="mp4" data-username="${resource.owner.username}" data-globalIndex="${idx}" href="javascript:;" data-href="${e.node.video_url}"><img width="100" src="${e.node.display_resources[1].src}" /><br/>- <span data-ih-locale-title="VID">${_i18n("VID")}</span> ${idx} -</a>`);
+                        $target.append(`<a media-id="${e.node.id}" datetime="${resource.taken_at_timestamp}" data-blob="true" data-needed="direct" data-path="${resource.shortcode}" data-name="video" data-type="mp4" data-username="${resource.owner.username}" data-globalIndex="${idx}" href="javascript:;" data-href="${e.node.video_url}"><img width="100" src="${getBestImageUrlFromMedia(e.node, e.node.display_resources?.[1]?.src)}" /><br/>- <span data-ih-locale-title="VID">${_i18n("VID")}</span> ${idx} -</a>`);
                         if (e.node.video_dash_manifest) {
                             state.GL_mediaDataCache[e.node.id] = e.node;
                         }
                     }
 
                     if (e.node.__typename == "GraphImage") {
-                        $target.append(`<a media-id="${e.node.id}" datetime="${resource.taken_at_timestamp}" data-blob="true" data-needed="direct" data-path="${resource.shortcode}" data-name="photo" data-type="jpg" data-username="${resource.owner.username}" data-globalIndex="${idx}" href="javascript:;" data-href="${e.node.display_resources[e.node.display_resources.length - 1].src}"><img width="100" src="${e.node.display_resources[1].src}" /><br/>- <span data-ih-locale="IMG">${_i18n("IMG")}</span> ${idx} -</a>`);
+                        $target.append(`<a media-id="${e.node.id}" datetime="${resource.taken_at_timestamp}" data-blob="true" data-needed="direct" data-path="${resource.shortcode}" data-name="photo" data-type="jpg" data-username="${resource.owner.username}" data-globalIndex="${idx}" href="javascript:;" data-href="${getBestImageUrlFromMedia(e.node, e.node.display_resources?.[e.node.display_resources.length - 1]?.src)}"><img width="100" src="${getBestImageUrlFromMedia(e.node, e.node.display_resources?.[1]?.src)}" /><br/>- <span data-ih-locale="IMG">${_i18n("IMG")}</span> ${idx} -</a>`);
                     }
                     idx++;
                 }
@@ -894,27 +903,11 @@ export async function createMediaListDOM(postURL, selector, message) {
                     let idx = ind + 1;
                     // Image
                     if (mda.video_versions == null) {
-                        mda.image_versions2.candidates.sort(function (a, b) {
-                            let aSTP = new URL(a.url).searchParams.get('stp');
-                            let bSTP = new URL(b.url).searchParams.get('stp');
-
-                            if (aSTP && bSTP) {
-                                if (aSTP.length > bSTP.length) return 1;
-                                if (aSTP.length < bSTP.length) return -1;
-                            }
-                            else {
-                                if (a.width < b.width) return 1;
-                                if (a.width > b.width) return -1;
-                            }
-
-                            return 0;
-                        });
-
-                        $target.append(`<a media-id="${mda.pk}" datetime="${mda.taken_at}" data-blob="true" data-needed="direct" data-path="${resource.code}" data-name="photo" data-type="jpg" data-username="${resource.owner.username}" data-globalIndex="${idx}" href="javascript:;" data-href="${mda.image_versions2.candidates[0].url}"><img width="100" src="${mda.image_versions2.candidates[0].url}" /><br/>- <span data-ih-locale="IMG">${_i18n("IMG")}</span> ${idx} -</a>`);
+                        $target.append(`<a media-id="${mda.pk}" datetime="${mda.taken_at}" data-blob="true" data-needed="direct" data-path="${resource.code}" data-name="photo" data-type="jpg" data-username="${resource.owner.username}" data-globalIndex="${idx}" href="javascript:;" data-href="${getBestImageUrlFromMedia(mda)}"><img width="100" src="${getBestImageUrlFromMedia(mda)}" /><br/>- <span data-ih-locale="IMG">${_i18n("IMG")}</span> ${idx} -</a>`);
                     }
                     // Video
                     else {
-                        $target.append(`<a media-id="${mda.pk}" datetime="${mda.taken_at}" data-blob="true" data-needed="direct" data-path="${resource.code}" data-name="video" data-type="mp4" data-username="${resource.owner.username}" data-globalIndex="${idx}" href="javascript:;" data-href="${mda.video_versions[0].url}"><img width="100" src="${mda.image_versions2.candidates[0].url}" /><br/>- <span data-ih-locale="VID">${_i18n("VID")}</span> ${idx} -</a>`);
+                        $target.append(`<a media-id="${mda.pk}" datetime="${mda.taken_at}" data-blob="true" data-needed="direct" data-path="${resource.code}" data-name="video" data-type="mp4" data-username="${resource.owner.username}" data-globalIndex="${idx}" href="javascript:;" data-href="${mda.video_versions[0].url}"><img width="100" src="${getBestImageUrlFromMedia(mda)}" /><br/>- <span data-ih-locale="VID">${_i18n("VID")}</span> ${idx} -</a>`);
                         if (mda.video_dash_manifest) {
                             state.GL_mediaDataCache[mda.pk] = mda;
                         }
@@ -925,30 +918,14 @@ export async function createMediaListDOM(postURL, selector, message) {
                 let idx = 1;
                 // Image
                 if (resource.video_versions == null) {
-                    resource.image_versions2.candidates.sort(function (a, b) {
-                        let aSTP = new URL(a.url).searchParams.get('stp');
-                        let bSTP = new URL(b.url).searchParams.get('stp');
-
-                        if (aSTP && bSTP) {
-                            if (aSTP.length > bSTP.length) return 1;
-                            if (aSTP.length < bSTP.length) return -1;
-                        }
-                        else {
-                            if (a.width < b.width) return 1;
-                            if (a.width > b.width) return -1;
-                        }
-
-                        return 0;
-                    });
-
-                    $target.append(`<a media-id="${resource.pk}" datetime="${resource.taken_at}" data-blob="true" data-needed="direct" data-path="${resource.code}" data-name="photo" data-type="jpg" data-username="${resource.owner.username}" data-globalIndex="${idx}" href="javascript:;" data-href="${resource.image_versions2.candidates[0].url}"><img width="100" src="${resource.image_versions2.candidates[0].url}" /><br/>- <span data-ih-locale="IMG">${_i18n("IMG")}</span> ${idx} -</a>`);
+                    $target.append(`<a media-id="${resource.pk}" datetime="${resource.taken_at}" data-blob="true" data-needed="direct" data-path="${resource.code}" data-name="photo" data-type="jpg" data-username="${resource.owner.username}" data-globalIndex="${idx}" href="javascript:;" data-href="${getBestImageUrlFromMedia(resource)}"><img width="100" src="${getBestImageUrlFromMedia(resource)}" /><br/>- <span data-ih-locale="IMG">${_i18n("IMG")}</span> ${idx} -</a>`);
                 }
                 // Video
                 else {
                     if (resource.video_dash_manifest) {
                         state.GL_mediaDataCache[resource.pk] = resource;
                     }
-                    $target.append(`<a media-id="${resource.pk}" datetime="${resource.taken_at}" data-blob="true" data-needed="direct" data-path="${resource.code}" data-name="video" data-type="mp4" data-username="${resource.owner.username}" data-globalIndex="${idx}" href="javascript:;" data-href="${resource.video_versions[0].url}"><img width="100" src="${resource.image_versions2.candidates[0].url}" /><br/>- <span data-ih-locale="VID">${_i18n("VID")}</span> ${idx} -</a>`);
+                    $target.append(`<a media-id="${resource.pk}" datetime="${resource.taken_at}" data-blob="true" data-needed="direct" data-path="${resource.code}" data-name="video" data-type="mp4" data-username="${resource.owner.username}" data-globalIndex="${idx}" href="javascript:;" data-href="${resource.video_versions[0].url}"><img width="100" src="${getBestImageUrlFromMedia(resource)}" /><br/>- <span data-ih-locale="VID">${_i18n("VID")}</span> ${idx} -</a>`);
                 }
             }
         }

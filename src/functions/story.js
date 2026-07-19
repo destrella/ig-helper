@@ -6,7 +6,9 @@ import {
     tryHandleDashFromMediaItem,
     updatePopupSelectionSummary,
     setStoryProgressIndexText,
-    setStoryProgressIndexByUsername
+    setStoryProgressIndexByUsername,
+    getBestImageUrlFromMedia,
+    getLargestImageUrlFromSrcset
 } from "../utils/general";
 import { getUserId, getStories, getMediaInfo } from "../utils/api";
 import { _i18n } from "../utils/i18n";
@@ -40,17 +42,13 @@ export async function createStoryListDOM(obj, type) {
                 timestamp = item.taken_at_timestamp;
             }
 
-            item.display_resources.sort(function (a, b) {
-                if (a.config_width < b.config_width) return 1;
-                if (a.config_width > b.config_width) return -1;
-                return 0;
-            });
-
             if (item.is_video) {
-                $selector.append(`<a media-id="${item.id}" datetime="${timestamp}" data-blob="true" data-needed="direct" data-name="${type}" data-type="mp4" data-username="${username}" data-path="${item.id}" data-globalIndex="${idx + 1}" href="javascript:;" data-href="${item.video_resources[0].src}"><img width="100" src="${item.display_resources[0].src}" /><br/>- <span data-ih-locale-title="VID">${_i18n("VID")}</span> ${idx} -</a>`);
+                const previewUrl = getBestImageUrlFromMedia(item, item.display_resources?.[0]?.src);
+                $selector.append(`<a media-id="${item.id}" datetime="${timestamp}" data-blob="true" data-needed="direct" data-name="${type}" data-type="mp4" data-username="${username}" data-path="${item.id}" data-globalIndex="${idx + 1}" href="javascript:;" data-href="${item.video_resources[0].src}"><img width="100" src="${previewUrl}" /><br/>- <span data-ih-locale-title="VID">${_i18n("VID")}</span> ${idx} -</a>`);
             }
             else {
-                $selector.append(`<a media-id="${item.id}" datetime="${timestamp}" data-blob="true" data-needed="direct" data-name="${type}" data-type="jpg" data-username="${username}" data-path="${item.id}" data-globalIndex="${idx + 1}" href="javascript:;" data-href="${item.display_resources[0].src}"><img width="100" src="${item.display_resources[0].src}" /><br/>- <span data-ih-locale-title="IMG">${_i18n("IMG")}</span> ${idx} -</a>`);
+                const imageUrl = getBestImageUrlFromMedia(item, item.display_resources?.[0]?.src);
+                $selector.append(`<a media-id="${item.id}" datetime="${timestamp}" data-blob="true" data-needed="direct" data-name="${type}" data-type="jpg" data-username="${username}" data-path="${item.id}" data-globalIndex="${idx + 1}" href="javascript:;" data-href="${imageUrl}"><img width="100" src="${imageUrl}" /><br/>- <span data-ih-locale-title="IMG">${_i18n("IMG")}</span> ${idx} -</a>`);
             }
         });
 
@@ -104,12 +102,6 @@ export async function onStoryAll() {
                     timestamp = item.taken_at_timestamp;
                 }
 
-                item.display_resources.sort(function (a, b) {
-                    if (a.config_width < b.config_width) return 1;
-                    if (a.config_width > b.config_width) return -1;
-                    return 0;
-                });
-
                 if (item.is_video) {
                     saveFiles(item.video_resources[0].src,
                         {
@@ -123,7 +115,7 @@ export async function onStoryAll() {
                         });
                 }
                 else {
-                    saveFiles(item.display_resources[0].src, {
+                    saveFiles(getBestImageUrlFromMedia(item), {
                         username,
                         sourceType: "stories",
                         timestamp,
@@ -319,11 +311,12 @@ export async function onStory(isDownload, isForce, isPreview) {
                     }
                 }
                 else {
+                    const imageUrl = getBestImageUrlFromMedia(mediaItem);
                     if (isPreview) {
-                        openNewTab(mediaItem.image_versions2.candidates[0].url);
+                        openNewTab(imageUrl);
                     }
                     else {
-                        saveFiles(mediaItem.image_versions2.candidates[0].url, {
+                        saveFiles(imageUrl, {
                             username,
                             sourceType: "stories",
                             timestamp,
@@ -457,8 +450,8 @@ export async function onStory(isDownload, isForce, isPreview) {
         }
         else {
             // Download stories if it is image
-            let srcset = $('body > div section:visible img[referrerpolicy][class], body > div section:visible img[crossorigin][class]:not([alt])').attr('srcset')?.split(',')[0]?.split(' ')[0];
-            let link = (srcset) ? srcset : $('body > div section:visible img[referrerpolicy][class], body > div section:visible img[crossorigin][class]:not([alt])').filter(function () {
+            let srcset = $('body > div section:visible img[referrerpolicy][class], body > div section:visible img[crossorigin][class]:not([alt])').attr('srcset');
+            let link = getLargestImageUrlFromSrcset(srcset, null) || $('body > div section:visible img[referrerpolicy][class], body > div section:visible img[crossorigin][class]:not([alt])').filter(function () {
                 const $this = $(this);
                 return $this.parents('a').length === 0 && $this.width() === $this.parent().width();
             }).attr('src');
@@ -466,7 +459,7 @@ export async function onStory(isDownload, isForce, isPreview) {
             if (!link) {
                 // _aa63 mean stories picture in stories page (not avatar)
                 let $element = $('body > div section:visible img._aa63');
-                link = ($element.attr('srcset')) ? $element.attr('srcset')?.split(',')[0]?.split(' ')[0] : $element.attr('src');
+                link = getLargestImageUrlFromSrcset($element.attr('srcset'), $element.attr('src'));
             }
 
             if (USER_SETTING.RENAME_PUBLISH_DATE) {
@@ -727,7 +720,7 @@ export async function onStoryThumbnail(isDownload, isForce) {
             }
 
             if (result.status === 'ok') {
-                saveFiles(result.items[0].image_versions2.candidates[0].url, {
+                saveFiles(getBestImageUrlFromMedia(result.items[0]), {
                     username,
                     sourceType: "stories",
                     timestamp,

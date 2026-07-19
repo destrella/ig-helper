@@ -109,8 +109,8 @@ export function getUserId(username) {
                         // eslint-disable-next-line no-unused-vars
                     }).catch((err) => {
                         userIdCache.delete(username);
-                        console.error('getUserId()', 'reject from agent', err);
-                        alert("Cannot find user info from getUserId()\nDetails may be in the console.");
+                        logger('getUserId()', 'fallback reject', err);
+                        reject(err);
                     });
                 }
             },
