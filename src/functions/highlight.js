@@ -4,7 +4,8 @@ import {
     setDownloadProgress, saveFiles, getStoryProgress,
     tryHandleDashFromMediaItem,
     getHighlightCurrentTimeElement, setTimeElementDateAndLocaleTime,
-    setStoryProgressIndexText, setStoryProgressIndexByUsername
+    setStoryProgressIndexText, setStoryProgressIndexByUsername,
+    getBestImageUrlFromMedia
 } from "../utils/general";
 import { _i18n } from "../utils/i18n";
 import { getHighlightStories, getMediaInfo } from "../utils/api";
@@ -99,7 +100,7 @@ export async function onHighlightsStoryAll() {
                     })();
                 }
                 else {
-                    saveFiles(item.display_resources[0].src,
+                    saveFiles(getBestImageUrlFromMedia(item, item.display_resources?.[0]?.src),
                         {
                             username,
                             sourceType: "highlights",
@@ -218,11 +219,12 @@ export async function onHighlightsStory(isDownload, isPreview) {
                     }
                 }
                 else {
+                    const imageUrl = getBestImageUrlFromMedia(mediaItem);
                     if (isPreview) {
-                        openNewTab(mediaItem.image_versions2.candidates[0].url);
+                        openNewTab(imageUrl);
                     }
                     else {
-                        saveFiles(mediaItem.image_versions2.candidates[0].url, {
+                        saveFiles(imageUrl, {
                             username,
                             sourceType: "highlights",
                             timestamp,
@@ -263,10 +265,10 @@ export async function onHighlightsStory(isDownload, isPreview) {
             }
             else {
                 if (isPreview) {
-                    openNewTab(target.display_resources.at(-1).src, username);
+                    openNewTab(getBestImageUrlFromMedia(target, target.display_resources?.at(-1)?.src), username);
                 }
                 else {
-                    saveFiles(target.display_resources.at(-1).src, {
+                    saveFiles(getBestImageUrlFromMedia(target, target.display_resources?.at(-1)?.src), {
                         username,
                         sourceType: "highlights",
                         timestamp,
@@ -441,7 +443,7 @@ export async function onHighlightsStoryThumbnail(isDownload) {
             let result = await getMediaInfo(target.id);
 
             if (result.status === 'ok') {
-                saveFiles(result.items[0].image_versions2.candidates[0].url, {
+                saveFiles(getBestImageUrlFromMedia(result.items[0]), {
                     username,
                     sourceType: "highlights",
                     timestamp,
@@ -464,7 +466,7 @@ export async function onHighlightsStoryThumbnail(isDownload) {
             }
         }
         else {
-            saveFiles(target.display_resources.at(-1).src, {
+            saveFiles(getBestImageUrlFromMedia(target, target.display_resources?.at(-1)?.src), {
                 username,
                 sourceType: "highlights",
                 timestamp,
