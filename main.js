@@ -1610,14 +1610,13 @@
                             }
                         });
 
-                        if (blob || USER_SETTING.FORCE_RESOURCE_VIA_MEDIA) {
-                            await createMediaListDOM(
-                                state.GL_postPath,
-                                ".IG_POPUP_DIG .IG_POPUP_DIG_MAIN .IG_POPUP_DIG_BODY",
-                                _i18n("LOAD_BLOB_MULTIPLE")
-                            );
-                        }
-                        else {
+                        const totalInserted = await createMediaListDOM(
+                            state.GL_postPath,
+                            ".IG_POPUP_DIG .IG_POPUP_DIG_MAIN .IG_POPUP_DIG_BODY",
+                            _i18n("LOAD_BLOB_MULTIPLE")
+                        );
+
+                        if (!totalInserted || totalInserted < 1) {
                             const $popupBody = $('.IG_POPUP_DIG .IG_POPUP_DIG_MAIN .IG_POPUP_DIG_BODY');
                             $resourceItems.each(function () {
                                 s++;
@@ -1633,14 +1632,6 @@
                                     $popupBody.append(`<a datetime="${publish_time}" data-needed="direct" data-path="${state.GL_postPath}" data-name="photo" data-type="jpg" data-globalIndex="${s}" href="javascript:;" data-href="${imgLink}"><img width="100" src="${imgLink}" /><br/>- <span data-ih-locale="IMG">${_i18n("IMG")}</span> ${s} -</a>`);
                                 }
                             });
-
-                            if (blob) {
-                                await createMediaListDOM(
-                                    state.GL_postPath,
-                                    ".IG_POPUP_DIG .IG_POPUP_DIG_MAIN .IG_POPUP_DIG_BODY",
-                                    _i18n("LOAD_BLOB_RELOAD")
-                                );
-                            }
                         }
                     }
                     else {
