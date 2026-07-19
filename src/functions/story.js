@@ -42,12 +42,6 @@ export async function createStoryListDOM(obj, type) {
                 timestamp = item.taken_at_timestamp;
             }
 
-            item.display_resources.sort(function (a, b) {
-                if (a.config_width < b.config_width) return 1;
-                if (a.config_width > b.config_width) return -1;
-                return 0;
-            });
-
             if (item.is_video) {
                 const previewUrl = getBestImageUrlFromMedia(item, item.display_resources?.[0]?.src);
                 $selector.append(`<a media-id="${item.id}" datetime="${timestamp}" data-blob="true" data-needed="direct" data-name="${type}" data-type="mp4" data-username="${username}" data-path="${item.id}" data-globalIndex="${idx + 1}" href="javascript:;" data-href="${item.video_resources[0].src}"><img width="100" src="${previewUrl}" /><br/>- <span data-ih-locale-title="VID">${_i18n("VID")}</span> ${idx} -</a>`);
@@ -107,12 +101,6 @@ export async function onStoryAll() {
                 if (USER_SETTING.RENAME_PUBLISH_DATE) {
                     timestamp = item.taken_at_timestamp;
                 }
-
-                item.display_resources.sort(function (a, b) {
-                    if (a.config_width < b.config_width) return 1;
-                    if (a.config_width > b.config_width) return -1;
-                    return 0;
-                });
 
                 if (item.is_video) {
                     saveFiles(item.video_resources[0].src,

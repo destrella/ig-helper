@@ -58,12 +58,6 @@ export async function onHighlightsStoryAll() {
                     timestamp = item.taken_at_timestamp;
                 }
 
-                item.display_resources.sort(function (a, b) {
-                    if (a.config_width < b.config_width) return 1;
-                    if (a.config_width > b.config_width) return -1;
-                    return 0;
-                });
-
                 if (item.is_video) {
                     (async () => {
                         if (USER_SETTING.FORCE_RESOURCE_VIA_MEDIA && USER_SETTING.PREFER_DASH_MANIFEST && !state.tempFetchRateLimit) {

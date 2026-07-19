@@ -903,22 +903,6 @@ export async function createMediaListDOM(postURL, selector, message) {
                     let idx = ind + 1;
                     // Image
                     if (mda.video_versions == null) {
-                        mda.image_versions2.candidates.sort(function (a, b) {
-                            let aSTP = new URL(a.url).searchParams.get('stp');
-                            let bSTP = new URL(b.url).searchParams.get('stp');
-
-                            if (aSTP && bSTP) {
-                                if (aSTP.length > bSTP.length) return 1;
-                                if (aSTP.length < bSTP.length) return -1;
-                            }
-                            else {
-                                if (a.width < b.width) return 1;
-                                if (a.width > b.width) return -1;
-                            }
-
-                            return 0;
-                        });
-
                         $target.append(`<a media-id="${mda.pk}" datetime="${mda.taken_at}" data-blob="true" data-needed="direct" data-path="${resource.code}" data-name="photo" data-type="jpg" data-username="${resource.owner.username}" data-globalIndex="${idx}" href="javascript:;" data-href="${getBestImageUrlFromMedia(mda)}"><img width="100" src="${getBestImageUrlFromMedia(mda)}" /><br/>- <span data-ih-locale="IMG">${_i18n("IMG")}</span> ${idx} -</a>`);
                     }
                     // Video
@@ -934,22 +918,6 @@ export async function createMediaListDOM(postURL, selector, message) {
                 let idx = 1;
                 // Image
                 if (resource.video_versions == null) {
-                    resource.image_versions2.candidates.sort(function (a, b) {
-                        let aSTP = new URL(a.url).searchParams.get('stp');
-                        let bSTP = new URL(b.url).searchParams.get('stp');
-
-                        if (aSTP && bSTP) {
-                            if (aSTP.length > bSTP.length) return 1;
-                            if (aSTP.length < bSTP.length) return -1;
-                        }
-                        else {
-                            if (a.width < b.width) return 1;
-                            if (a.width > b.width) return -1;
-                        }
-
-                        return 0;
-                    });
-
                     $target.append(`<a media-id="${resource.pk}" datetime="${resource.taken_at}" data-blob="true" data-needed="direct" data-path="${resource.code}" data-name="photo" data-type="jpg" data-username="${resource.owner.username}" data-globalIndex="${idx}" href="javascript:;" data-href="${getBestImageUrlFromMedia(resource)}"><img width="100" src="${getBestImageUrlFromMedia(resource)}" /><br/>- <span data-ih-locale="IMG">${_i18n("IMG")}</span> ${idx} -</a>`);
                 }
                 // Video

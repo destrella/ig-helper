@@ -455,12 +455,6 @@
                         timestamp = item.taken_at_timestamp;
                     }
 
-                    item.display_resources.sort(function (a, b) {
-                        if (a.config_width < b.config_width) return 1;
-                        if (a.config_width > b.config_width) return -1;
-                        return 0;
-                    });
-
                     if (item.is_video) {
                         (async () => {
                             if (USER_SETTING.FORCE_RESOURCE_VIA_MEDIA && USER_SETTING.PREFER_DASH_MANIFEST && !state.tempFetchRateLimit) {
@@ -1806,22 +1800,6 @@
                         let idx = ind + 1;
                         // Image
                         if (mda.video_versions == null) {
-                            mda.image_versions2.candidates.sort(function (a, b) {
-                                let aSTP = new URL(a.url).searchParams.get('stp');
-                                let bSTP = new URL(b.url).searchParams.get('stp');
-
-                                if (aSTP && bSTP) {
-                                    if (aSTP.length > bSTP.length) return 1;
-                                    if (aSTP.length < bSTP.length) return -1;
-                                }
-                                else {
-                                    if (a.width < b.width) return 1;
-                                    if (a.width > b.width) return -1;
-                                }
-
-                                return 0;
-                            });
-
                             $target.append(`<a media-id="${mda.pk}" datetime="${mda.taken_at}" data-blob="true" data-needed="direct" data-path="${resource.code}" data-name="photo" data-type="jpg" data-username="${resource.owner.username}" data-globalIndex="${idx}" href="javascript:;" data-href="${getBestImageUrlFromMedia(mda)}"><img width="100" src="${getBestImageUrlFromMedia(mda)}" /><br/>- <span data-ih-locale="IMG">${_i18n("IMG")}</span> ${idx} -</a>`);
                         }
                         // Video
@@ -1837,22 +1815,6 @@
                     let idx = 1;
                     // Image
                     if (resource.video_versions == null) {
-                        resource.image_versions2.candidates.sort(function (a, b) {
-                            let aSTP = new URL(a.url).searchParams.get('stp');
-                            let bSTP = new URL(b.url).searchParams.get('stp');
-
-                            if (aSTP && bSTP) {
-                                if (aSTP.length > bSTP.length) return 1;
-                                if (aSTP.length < bSTP.length) return -1;
-                            }
-                            else {
-                                if (a.width < b.width) return 1;
-                                if (a.width > b.width) return -1;
-                            }
-
-                            return 0;
-                        });
-
                         $target.append(`<a media-id="${resource.pk}" datetime="${resource.taken_at}" data-blob="true" data-needed="direct" data-path="${resource.code}" data-name="photo" data-type="jpg" data-username="${resource.owner.username}" data-globalIndex="${idx}" href="javascript:;" data-href="${getBestImageUrlFromMedia(resource)}"><img width="100" src="${getBestImageUrlFromMedia(resource)}" /><br/>- <span data-ih-locale="IMG">${_i18n("IMG")}</span> ${idx} -</a>`);
                     }
                     // Video
@@ -2529,12 +2491,6 @@
                     timestamp = item.taken_at_timestamp;
                 }
 
-                item.display_resources.sort(function (a, b) {
-                    if (a.config_width < b.config_width) return 1;
-                    if (a.config_width > b.config_width) return -1;
-                    return 0;
-                });
-
                 if (item.is_video) {
                     const previewUrl = getBestImageUrlFromMedia(item, item.display_resources?.[0]?.src);
                     $selector.append(`<a media-id="${item.id}" datetime="${timestamp}" data-blob="true" data-needed="direct" data-name="${type}" data-type="mp4" data-username="${username}" data-path="${item.id}" data-globalIndex="${idx + 1}" href="javascript:;" data-href="${item.video_resources[0].src}"><img width="100" src="${previewUrl}" /><br/>- <span data-ih-locale-title="VID">${_i18n("VID")}</span> ${idx} -</a>`);
@@ -2594,12 +2550,6 @@
                     if (USER_SETTING.RENAME_PUBLISH_DATE) {
                         timestamp = item.taken_at_timestamp;
                     }
-
-                    item.display_resources.sort(function (a, b) {
-                        if (a.config_width < b.config_width) return 1;
-                        if (a.config_width > b.config_width) return -1;
-                        return 0;
-                    });
 
                     if (item.is_video) {
                         saveFiles(item.video_resources[0].src,
