@@ -773,6 +773,12 @@ export function registerPostClickHandlers() {
                 }
             });
 
+            const $downloadItems = $('.IG_POPUP_DIG .IG_POPUP_DIG_MAIN .IG_POPUP_DIG_BODY a[data-needed="direct"]');
+            if ($downloadItems.length > 0) {
+                $('.IG_POPUP_DIG #batch_download_selected, .IG_POPUP_DIG #batch_download_direct').prop('disabled', false);
+                updatePopupSelectionSummary();
+            }
+
             if (USER_SETTING.DIRECT_DOWNLOAD_ALL) {
                 const totalInserted = await createMediaListDOM(
                     state.GL_postPath,

@@ -1677,6 +1677,12 @@
                     }
                 });
 
+                const $downloadItems = $('.IG_POPUP_DIG .IG_POPUP_DIG_MAIN .IG_POPUP_DIG_BODY a[data-needed="direct"]');
+                if ($downloadItems.length > 0) {
+                    $('.IG_POPUP_DIG #batch_download_selected, .IG_POPUP_DIG #batch_download_direct').prop('disabled', false);
+                    updatePopupSelectionSummary();
+                }
+
                 if (USER_SETTING.DIRECT_DOWNLOAD_ALL) {
                     const totalInserted = await createMediaListDOM(
                         state.GL_postPath,
@@ -3470,7 +3476,8 @@
                             // eslint-disable-next-line no-unused-vars
                         }).catch((err) => {
                             userIdCache.delete(username);
-                            alert("Cannot find user info from getUserId()");
+                            logger('getUserId()', 'fallback reject', err);
+                            reject(err);
                         });
                     }
                 },
@@ -4827,7 +4834,7 @@
 
             let date = new Date().getTime();
             let timestamp = Math.floor(date / 1000);
-            let username = $el.data('username') ? $el.data('username') : state.GLusername;
+            let username = $el.data('username') ? $el.data('username') : state.GL_username;
             let index = parseInt($el.attr('data-globalindex') || 0, 10) || 0;
 
             if (!username && $el.data('path')) {
